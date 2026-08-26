@@ -1,0 +1,304 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum EmployeeRole {
+  ADMIN
+  EMPLOYEE
+}
+
+enum AttendanceType {
+  CHECK_IN
+  CHECK_OUT
+}
+
+enum AttendanceStatus {
+  ON_TIME
+  LATE
+}
+
+enum InvoiceType {
+  CASH
+  CREDIT
+}
+
+enum PaymentMethod {
+  CASH
+  ELECTRONIC
+}
+
+enum InvoiceStatus {
+  PAID
+  PARTIAL
+  UNPAID
+}
+
+enum TransactionType {
+  SALE
+  MAINTENANCE
+  EXPENSE
+  WITHDRAWAL
+}
+
+enum PaymentChannelType {
+  WALLET
+  POS_MACHINE
+  BANK_ACCOUNT
+}
+
+enum PaymentChannelTxType {
+  DEPOSIT
+  WITHDRAWAL
+  SERVICE
+}
+
+enum ProductCondition {
+  NEW
+  USED
+  REFURBISHED
+}
+
+model Store {
+  id                 String    @id @default(uuid())
+  name               String
+  ownerName          String
+  ownerPhone         String
+  ownerPasswordHash  String
+  isActive           Boolean   @default(true)
+  inventoryPin       String?
+  createdAt          DateTime  @default(now())
+  subscriptionEndsAt DateTime?
+
+  employees              Employee[]
+  attendanceLogs         AttendanceLog[]
+  productCategories      ProductCategory[]
+  products               Product[]
+  customers              Customer[]
+  invoices               Invoice[]
+  cashDrawerTransactions    CashDrawerTransaction[]
+  expenses                  Expense[]
+  paymentChannels           PaymentChannel[]
+  paymentChannelTransactions PaymentChannelTransaction[]
+
+  @@index([createdAt])
+}
+
+model Employee {
+  id        String       @id @default(uuid())
+  storeId   String
+  name      String
+  phone     String
+  pin       String
+  role      EmployeeRole
+  isActive  Boolean      @default(true)
+  createdAt DateTime     @default(now())
+
+  store                  Store                   @relation(fields: [storeId], references: [id])
+  attendanceLogs         AttendanceLog[]
+  invoices               Invoice[]
+  cashDrawerTransactions CashDrawerTransaction[]
+  paymentChannelTransactions PaymentChannelTransaction[]
+
+  @@index([storeId])
+  @@index([createdAt])
+}
+
+model AttendanceLog {
+  id           String           @id @default(uuid())
+  employeeId   String
+  storeId      String
+  type         AttendanceType
+  timestamp    DateTime         @default(now())
+  status       AttendanceStatus
+  delayMinutes Int?
+  selfieUrl    String?
+  latitude     Float?
+  longitude    Float?
+
+  employee Employee @relation(fields: [employeeId], references: [id])
+  store    Store    @relation(fields: [storeId], references: [id])
+
+  @@index([storeId])
+  @@index([timestamp])
+}
+
+model ProductCategory {
+  id       String  @id @default(uuid())
+  storeId  String
+  name     String
+  parentId String?
+
+  store    Store             @relation(fields: [storeId], references: [id])
+  parent   ProductCategory?  @relation("CategoryToCategory", fields: [parentId], references: [id])
+  children ProductCategory[] @relation("CategoryToCategory")
+  products Product[]
+
+  @@index([storeId])
+}
+
+model Product {
+  id               String   @id @default(uuid())
+  storeId          String
+  categoryId       String?
+  name             String
+  sku              String?
+  barcode          String?
+  imei             String?
+  condition        ProductCondition?
+  warrantyMonths   Int?
+  costPrice        Decimal
+  salePrice        Decimal
+  quantity         Int
+  minQuantityAlert Int?
+  imageUrl         String?
+  createdAt        DateTime @default(now())
+
+  store        Store            @relation(fields: [storeId], references: [id])
+  category     ProductCategory? @relation(fields: [categoryId], references: [id])
+  invoiceItems InvoiceItem[]
+
+  @@index([storeId])
+  @@index([createdAt])
+  @@index([imei])
+}
+
+model Customer {
+  id        String   @id @default(uuid())
+  storeId   String
+  name      String
+  phone     String
+  totalDebt Decimal  @default(0)
+  createdAt DateTime @default(now())
+
+  store        Store         @relation(fields: [storeId], references: [id])
+  invoices     Invoice[]
+  debtPayments DebtPayment[]
+
+  @@index([storeId])
+  @@index([createdAt])
+}
+
+model Invoice {
+  id                  String        @id @default(uuid())
+  storeId             String
+  customerId          String?
+  createdByEmployeeId String
+  invoiceType         InvoiceType
+  totalAmount         Decimal
+  paidAmount          Decimal
+  remainingAmount     Decimal
+  paymentMethod       PaymentMethod
+  paymentChannelId    String?
+  status              InvoiceStatus
+  createdAt           DateTime      @default(now())
+
+  store             Store           @relation(fields: [storeId], references: [id])
+  customer          Customer?       @relation(fields: [customerId], references: [id])
+  createdByEmployee Employee        @relation(fields: [createdByEmployeeId], references: [id])
+  paymentChannel    PaymentChannel? @relation(fields: [paymentChannelId], references: [id])
+  items             InvoiceItem[]
+  debtPayments      DebtPayment[]
+
+  @@index([storeId])
+  @@index([createdAt])
+}
+
+model InvoiceItem {
+  id        String  @id @default(uuid())
+  invoiceId String
+  productId String
+  quantity  Int
+  unitPrice Decimal
+  subtotal  Decimal
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id])
+
+  @@index([invoiceId])
+  @@index([productId])
+}
+
+model DebtPayment {
+  id          String   @id @default(uuid())
+  invoiceId   String
+  customerId  String
+  amountPaid  Decimal
+  paymentDate DateTime @default(now())
+  notes       String?
+
+  invoice  Invoice  @relation(fields: [invoiceId], references: [id])
+  customer Customer @relation(fields: [customerId], references: [id])
+
+  @@index([invoiceId])
+  @@index([customerId])
+}
+
+model CashDrawerTransaction {
+  id            String          @id @default(uuid())
+  storeId       String
+  employeeId    String
+  type          TransactionType
+  amount        Decimal
+  paymentMethod PaymentMethod
+  description   String?
+  createdAt     DateTime        @default(now())
+
+  store    Store    @relation(fields: [storeId], references: [id])
+  employee Employee @relation(fields: [employeeId], references: [id])
+
+  @@index([storeId])
+  @@index([createdAt])
+}
+
+model Expense {
+  id          String   @id @default(uuid())
+  storeId     String
+  category    String
+  amount      Decimal
+  description String?
+  createdAt   DateTime @default(now())
+
+  store Store @relation(fields: [storeId], references: [id])
+
+  @@index([storeId])
+  @@index([createdAt])
+}
+
+
+model PaymentChannel {
+  id        String   @id @default(uuid())
+  storeId   String
+  store     Store    @relation(fields: [storeId], references: [id])
+  name      String
+  type      PaymentChannelType
+  balance   Decimal  @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  transactions PaymentChannelTransaction[]
+  invoices     Invoice[]
+
+  @@index([storeId])
+}
+
+model PaymentChannelTransaction {
+  id               String   @id @default(uuid())
+  storeId          String
+  paymentChannelId String
+  paymentChannel   PaymentChannel @relation(fields: [paymentChannelId], references: [id])
+  employeeId       String
+  type             PaymentChannelTxType
+  amount           Decimal
+  description      String?
+  createdAt        DateTime @default(now())
+
+  store            Store    @relation(fields: [storeId], references: [id])
+  employee         Employee @relation(fields: [employeeId], references: [id])
+
+  @@index([storeId])
+  @@index([paymentChannelId])
+}
