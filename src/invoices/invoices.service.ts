@@ -9,8 +9,9 @@ export class InvoicesService {
   constructor(private readonly prisma: PrismaService) {}
 
   async create(storeId: string, employeeId: string, role: string, dto: CreateInvoiceDto) {
-    if (dto.invoiceType === InvoiceType.CREDIT && !dto.customerId) {
-      throw new BadRequestException('customerId is required for CREDIT invoices');
+    // For CREDIT: require either customerId or customerName
+    if (dto.invoiceType === InvoiceType.CREDIT && !dto.customerId && !dto.customerName) {
+      throw new BadRequestException('customerId or customerName is required for CREDIT invoices');
     }
 
     if (dto.paymentMethod === 'ELECTRONIC' && !dto.paymentChannelId) {
@@ -19,11 +20,51 @@ export class InvoicesService {
 
     // Prisma transaction
     return this.prisma.$transaction(async (prisma) => {
+      // 0. Resolve/create customer if customerName provided instead of customerId
+      let resolvedCustomerId = dto.customerId;
+      if (!resolvedCustomerId && dto.customerName) {
+        // Try to find existing customer by phone or name in this store
+        let customer = await prisma.customer.findFirst({
+          where: {
+            storeId,
+            OR: [
+              dto.customerPhone ? { phone: dto.customerPhone } : undefined,
+              { name: dto.customerName },
+            ].filter(Boolean) as any,
+          },
+        });
+        if (!customer) {
+          customer = await prisma.customer.create({
+            data: {
+              storeId,
+              name: dto.customerName,
+              phone: dto.customerPhone ?? null,
+            },
+          });
+        }
+        resolvedCustomerId = customer.id;
+      }
+
       // 1. Verify and fetch all products, calculate totals
       let totalAmount = 0;
       const verifiedItems = [];
 
       for (const item of dto.items) {
+        // Support custom/freetext items (no productId required)
+        if (!item.productId || item.productId === 'custom') {
+          const unitPrice = item.unitPrice ?? 0;
+          const subtotal = unitPrice * item.quantity;
+          totalAmount += subtotal;
+          verifiedItems.push({
+            productId: null,
+            productName: item.productName ?? 'منتج',
+            quantity: item.quantity,
+            unitPrice: unitPrice,
+            subtotal: subtotal,
+          });
+          continue;
+        }
+
         const product = await prisma.product.findFirst({
           where: { id: item.productId, storeId },
         });
@@ -36,17 +77,19 @@ export class InvoicesService {
           throw new BadRequestException(`Insufficient stock for product ${product.name}`);
         }
 
-        const subtotal = Number(product.salePrice) * item.quantity;
+        const unitPrice = item.unitPrice ?? Number(product.salePrice);
+        const subtotal = unitPrice * item.quantity;
         totalAmount += subtotal;
 
         verifiedItems.push({
           productId: product.id,
+          productName: product.name,
           quantity: item.quantity,
-          unitPrice: product.salePrice,
+          unitPrice: unitPrice,
           subtotal: subtotal,
         });
 
-        // 2. Decrement product stock
+        // Decrement product stock
         await prisma.product.update({
           where: { id: product.id },
           data: { quantity: { decrement: item.quantity } },
@@ -54,20 +97,21 @@ export class InvoicesService {
       }
 
       // 3. Determine payment and status
+      // Allow total amount override from client (for custom items)
+      if (dto.totalAmount && dto.totalAmount > 0) {
+        totalAmount = dto.totalAmount;
+      }
       let paidAmount = 0;
       let remainingAmount = 0;
       let status: InvoiceStatus = InvoiceStatus.PAID;
 
       if (dto.invoiceType === InvoiceType.CASH) {
-        paidAmount = totalAmount;
+        paidAmount = dto.paidAmount ?? totalAmount;
         remainingAmount = 0;
         status = InvoiceStatus.PAID;
       } else {
         // CREDIT
         paidAmount = dto.paidAmount ?? 0;
-        if (paidAmount > totalAmount) {
-          throw new BadRequestException('Paid amount cannot exceed total amount');
-        }
         remainingAmount = totalAmount - paidAmount;
         status = remainingAmount === 0 ? InvoiceStatus.PAID : (paidAmount > 0 ? InvoiceStatus.PARTIAL : InvoiceStatus.UNPAID);
       }
@@ -118,7 +162,7 @@ export class InvoicesService {
       const invoice = await prisma.invoice.create({
         data: {
           storeId,
-          customerId: dto.customerId,
+          customerId: resolvedCustomerId,
           createdByEmployeeId: actualEmployeeId,
           invoiceType: dto.invoiceType,
           paymentMethod: dto.paymentMethod,
@@ -129,7 +173,7 @@ export class InvoicesService {
           status,
           items: {
             create: verifiedItems.map(item => ({
-              productId: item.productId,
+              ...(item.productId ? { product: { connect: { id: item.productId } } } : {}),
               quantity: item.quantity,
               unitPrice: item.unitPrice,
               subtotal: item.subtotal,

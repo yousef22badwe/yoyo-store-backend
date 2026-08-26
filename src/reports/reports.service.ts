@@ -134,8 +134,10 @@ export class ReportsService {
     const productMap: Record<string, any> = {};
     for (const item of items) {
       const pid = item.productId;
+      if (!pid) continue; // skip custom items without a product
+      const productName = item.product?.name ?? item.productName ?? 'منتج';
       if (!productMap[pid]) {
-        productMap[pid] = { name: item.product.name, totalQuantity: 0, totalRevenue: 0 };
+        productMap[pid] = { name: productName, totalQuantity: 0, totalRevenue: 0 };
       }
       productMap[pid].totalQuantity += item.quantity;
       productMap[pid].totalRevenue += Number(item.subtotal);

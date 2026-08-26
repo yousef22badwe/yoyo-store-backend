@@ -13,23 +13,50 @@ export enum PaymentMethod {
 }
 
 export class InvoiceItemDto {
-  @ApiProperty({ description: 'The product ID', example: 'uuid-1234' })
+  @ApiPropertyOptional({ description: 'The product ID (optional for custom items)', example: 'uuid-1234' })
   @IsUUID()
-  @IsNotEmpty()
-  productId: string;
+  @IsOptional()
+  productId?: string;
+
+  @ApiPropertyOptional({ description: 'Custom product name (used when productId is not set)', example: 'iPhone 15' })
+  @IsString()
+  @IsOptional()
+  productName?: string;
 
   @ApiProperty({ description: 'Quantity sold', example: 2 })
   @IsNumber()
   @Min(1)
   @IsNotEmpty()
   quantity: number;
+
+  @ApiPropertyOptional({ description: 'Unit price override (used for custom items)', example: 15000 })
+  @IsNumber()
+  @Min(0)
+  @IsOptional()
+  unitPrice?: number;
 }
 
 export class CreateInvoiceDto {
-  @ApiPropertyOptional({ description: 'The ID of the customer. Required if CREDIT', example: 'uuid-5678' })
+  @ApiPropertyOptional({ description: 'The ID of the customer. Optional - can use customerName instead', example: 'uuid-5678' })
   @IsUUID()
   @IsOptional()
   customerId?: string;
+
+  @ApiPropertyOptional({ description: 'Customer name (used to create/find customer by name)', example: 'أحمد علي' })
+  @IsString()
+  @IsOptional()
+  customerName?: string;
+
+  @ApiPropertyOptional({ description: 'Customer phone', example: '01011111111' })
+  @IsString()
+  @IsOptional()
+  customerPhone?: string;
+
+  @ApiPropertyOptional({ description: 'Total amount override (calculated from items if not provided)' })
+  @IsNumber()
+  @Min(0)
+  @IsOptional()
+  totalAmount?: number;
 
   @ApiProperty({ description: 'Type of invoice', enum: InvoiceType, example: InvoiceType.CASH })
   @IsEnum(InvoiceType)
