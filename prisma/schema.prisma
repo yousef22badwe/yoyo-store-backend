@@ -69,7 +69,7 @@ model Store {
   ownerName          String
   ownerPhone         String
   ownerPasswordHash  String
-  isActive           Boolean   @default(true)
+  isActive           Boolean   @default(false)
   inventoryPin       String?
   createdAt          DateTime  @default(now())
   subscriptionEndsAt DateTime?

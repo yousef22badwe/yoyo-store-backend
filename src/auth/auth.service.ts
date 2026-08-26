@@ -24,7 +24,9 @@ export class AuthService {
 
     const saltRounds = 10;
     const ownerPasswordHash = await bcrypt.hash(dto.ownerPassword, saltRounds);
-    const inventoryPinHash = dto.inventoryPin ? await bcrypt.hash(dto.inventoryPin, saltRounds) : null;
+    
+    // Storing as plain text because the Flutter client expects it for local offline auth checks
+    const inventoryPinPlain = dto.inventoryPin || null;
 
     const store = await this.prisma.store.create({
       data: {
@@ -32,7 +34,7 @@ export class AuthService {
         ownerName: dto.ownerName,
         ownerPhone: dto.ownerPhone,
         ownerPasswordHash,
-        inventoryPin: inventoryPinHash,
+        inventoryPin: inventoryPinPlain,
       },
     });
 
@@ -116,6 +118,7 @@ export class AuthService {
         id: store.id,
         phone: store.ownerPhone,
         owner_name: store.ownerName,
+        owner_pin: store.inventoryPin,
         store_name: store.name,
         is_active: store.isActive,
         is_admin: true,
@@ -133,6 +136,7 @@ export class AuthService {
         id: employee.id,
         phone: employee.phone,
         owner_name: employee.name, // employee name
+        owner_pin: employee.store.inventoryPin,
         store_name: employee.store.name,
         is_active: employee.isActive && employee.store.isActive,
         is_admin: employee.role === 'ADMIN',

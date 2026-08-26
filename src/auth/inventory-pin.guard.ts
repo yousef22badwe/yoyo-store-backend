@@ -21,20 +21,15 @@ export class InventoryPinGuard implements CanActivate {
       select: { inventoryPin: true },
     });
 
-    if (!store) {
-      throw new ForbiddenException('Store not found');
-    }
-
-    // If no pin is set yet, allow it (legacy support)
-    if (!store.inventoryPin) {
-      return true;
+    if (!store?.inventoryPin) {
+      return true; // No PIN set, allow access
     }
 
     if (!providedPin) {
       throw new ForbiddenException('Inventory PIN is required for this action');
     }
 
-    const isMatch = await bcrypt.compare(providedPin, store.inventoryPin);
+    const isMatch = providedPin === store.inventoryPin;
     if (!isMatch) {
       throw new ForbiddenException('Invalid Inventory PIN');
     }
