@@ -13,7 +13,7 @@ erDiagram
         String name
         String ownerPhone
     }
-    
+
     EMPLOYEE {
         String id PK
         String storeId FK
@@ -75,10 +75,10 @@ erDiagram
     STORE ||--o{ CUSTOMER : has
     STORE ||--o{ INVOICE : generates
     STORE ||--o{ PAYMENT_CHANNEL : has
-    
+
     EMPLOYEE ||--o{ INVOICE : creates
     CUSTOMER ||--o{ INVOICE : belongs_to
-    
+
     INVOICE ||--|{ INVOICE_ITEM : contains
     PRODUCT ||--o{ INVOICE_ITEM : included_in
 ```
@@ -90,3 +90,18 @@ erDiagram
 3. Ask the developer for the `.env` file (which contains the `DATABASE_URL` and `JWT_SECRET`) and place it in the root folder.
 4. Run `npm run start:dev` to start the server.
 5. Open `http://localhost:3000/api-docs` in your browser to access the Swagger UI and test the endpoints.
+
+## Production configuration
+
+Set strong, different values for `JWT_SECRET` and `PLATFORM_ADMIN_SECRET`.
+Set `ALLOWED_ORIGINS` to the comma-separated HTTPS addresses of the deployed
+Flutter web app. The server rejects browser origins by default in production
+when this setting is missing.
+
+## Applying database schema changes
+
+Before starting a deployment that includes schema updates, apply them to the
+target database with `npx prisma db push`. Back up production data first and run
+the command once per environment. Employee shifts default to 09:00 with a
+10-minute grace period, and store attendance uses the `Africa/Cairo` timezone by
+default.

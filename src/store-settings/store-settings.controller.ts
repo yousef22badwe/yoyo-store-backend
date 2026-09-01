@@ -14,7 +14,9 @@ import { CurrentUser } from '../auth/current-user.decorator';
 export class StoreSettingsController {
   constructor(private readonly storeSettingsService: StoreSettingsService) {}
 
-  @ApiOperation({ summary: 'Set or update the store inventory PIN (Admin only)' })
+  @ApiOperation({
+    summary: 'Set or update the store inventory PIN (Admin only)',
+  })
   @Roles('ADMIN')
   @Post('inventory-pin')
   setInventoryPin(@CurrentUser() user: any, @Body() dto: SetInventoryPinDto) {

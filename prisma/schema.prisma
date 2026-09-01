@@ -73,35 +73,39 @@ model Store {
   inventoryPin       String?
   createdAt          DateTime  @default(now())
   subscriptionEndsAt DateTime?
+  timezone           String    @default("Africa/Cairo")
 
-  employees              Employee[]
-  attendanceLogs         AttendanceLog[]
-  productCategories      ProductCategory[]
-  products               Product[]
-  customers              Customer[]
-  invoices               Invoice[]
-  cashDrawerTransactions    CashDrawerTransaction[]
-  expenses                  Expense[]
-  paymentChannels           PaymentChannel[]
+  employees                  Employee[]
+  attendanceLogs             AttendanceLog[]
+  productCategories          ProductCategory[]
+  products                   Product[]
+  customers                  Customer[]
+  invoices                   Invoice[]
+  cashDrawerTransactions     CashDrawerTransaction[]
+  expenses                   Expense[]
+  paymentChannels            PaymentChannel[]
   paymentChannelTransactions PaymentChannelTransaction[]
 
   @@index([createdAt])
 }
 
 model Employee {
-  id        String       @id @default(uuid())
-  storeId   String
-  name      String
-  phone     String
-  pin       String
-  role      EmployeeRole
-  isActive  Boolean      @default(true)
-  createdAt DateTime     @default(now())
+  id                String       @id @default(uuid())
+  storeId           String
+  name              String
+  phone             String
+  pin               String
+  role              EmployeeRole
+  isActive          Boolean      @default(true)
+  shiftStartMinutes Int          @default(540)
+  graceMinutes      Int          @default(10)
+  workDays          Int[]        @default([0, 1, 2, 3, 4, 5, 6])
+  createdAt         DateTime     @default(now())
 
-  store                  Store                   @relation(fields: [storeId], references: [id])
-  attendanceLogs         AttendanceLog[]
-  invoices               Invoice[]
-  cashDrawerTransactions CashDrawerTransaction[]
+  store                      Store                       @relation(fields: [storeId], references: [id])
+  attendanceLogs             AttendanceLog[]
+  invoices                   Invoice[]
+  cashDrawerTransactions     CashDrawerTransaction[]
   paymentChannelTransactions PaymentChannelTransaction[]
 
   @@index([storeId])
@@ -142,7 +146,7 @@ model ProductCategory {
 }
 
 model Product {
-  id               String   @id @default(uuid())
+  id               String            @id @default(uuid())
   storeId          String
   categoryId       String?
   name             String
@@ -156,7 +160,7 @@ model Product {
   quantity         Int
   minQuantityAlert Int?
   imageUrl         String?
-  createdAt        DateTime @default(now())
+  createdAt        DateTime          @default(now())
 
   store        Store            @relation(fields: [storeId], references: [id])
   category     ProductCategory? @relation(fields: [categoryId], references: [id])
@@ -270,16 +274,15 @@ model Expense {
   @@index([createdAt])
 }
 
-
 model PaymentChannel {
-  id        String   @id @default(uuid())
-  storeId   String
-  store     Store    @relation(fields: [storeId], references: [id])
-  name      String
-  type      PaymentChannelType
-  balance   Decimal  @default(0)
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
+  id           String                      @id @default(uuid())
+  storeId      String
+  store        Store                       @relation(fields: [storeId], references: [id])
+  name         String
+  type         PaymentChannelType
+  balance      Decimal                     @default(0)
+  isActive     Boolean                     @default(true)
+  createdAt    DateTime                    @default(now())
   transactions PaymentChannelTransaction[]
   invoices     Invoice[]
 
@@ -287,18 +290,18 @@ model PaymentChannel {
 }
 
 model PaymentChannelTransaction {
-  id               String   @id @default(uuid())
+  id               String               @id @default(uuid())
   storeId          String
   paymentChannelId String
-  paymentChannel   PaymentChannel @relation(fields: [paymentChannelId], references: [id])
+  paymentChannel   PaymentChannel       @relation(fields: [paymentChannelId], references: [id])
   employeeId       String
   type             PaymentChannelTxType
   amount           Decimal
   description      String?
-  createdAt        DateTime @default(now())
+  createdAt        DateTime             @default(now())
 
-  store            Store    @relation(fields: [storeId], references: [id])
-  employee         Employee @relation(fields: [employeeId], references: [id])
+  store    Store    @relation(fields: [storeId], references: [id])
+  employee Employee @relation(fields: [employeeId], references: [id])
 
   @@index([storeId])
   @@index([paymentChannelId])

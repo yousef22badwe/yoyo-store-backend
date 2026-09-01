@@ -1,5 +1,4 @@
 import { Module } from '@nestjs/common';
-import { UploadsModule } from './uploads/uploads.module';
 import { ReportsModule } from './reports/reports.module';
 import { PaymentChannelsModule } from './payment-channels/payment-channels.module';
 import { StoreSettingsModule } from './store-settings/store-settings.module';
@@ -18,7 +17,6 @@ import { EmployeesModule } from './employees/employees.module';
 
 @Module({
   imports: [
-    UploadsModule,
     ReportsModule,
     PaymentChannelsModule,
     StoreSettingsModule,

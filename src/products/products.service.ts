@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
@@ -55,9 +59,9 @@ export class ProductsService {
       where,
       include: {
         category: {
-          select: { name: true }
-        }
-      }
+          select: { name: true },
+        },
+      },
     });
   }
 
@@ -66,7 +70,7 @@ export class ProductsService {
       where: { id, storeId },
       include: {
         category: true,
-      }
+      },
     });
 
     if (!product) {
@@ -84,7 +88,7 @@ export class ProductsService {
       },
     });
 
-    return products.filter(p => p.quantity <= p.minQuantityAlert!);
+    return products.filter((p) => p.quantity <= p.minQuantityAlert!);
   }
 
   async update(storeId: string, id: string, dto: UpdateProductDto) {
@@ -125,7 +129,9 @@ export class ProductsService {
     });
 
     if (invoiceItemsCount > 0) {
-      throw new BadRequestException('Cannot delete this product because it is referenced in existing invoices. Consider updating its stock or marking it inactive instead.');
+      throw new BadRequestException(
+        'Cannot delete this product because it is referenced in existing invoices. Consider updating its stock or marking it inactive instead.',
+      );
     }
 
     return this.prisma.product.delete({

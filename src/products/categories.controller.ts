@@ -1,5 +1,10 @@
 import { Controller, Get, Post, Body, UseGuards } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiHeader } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiBearerAuth,
+  ApiHeader,
+} from '@nestjs/swagger';
 import { CategoriesService } from './categories.service';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -14,10 +19,17 @@ export class CategoriesController {
   constructor(private readonly categoriesService: CategoriesService) {}
 
   @ApiOperation({ summary: 'Create a new product category' })
-  @ApiHeader({ name: 'X-Inventory-Pin', required: false, description: 'Required if store has an inventory PIN set' })
+  @ApiHeader({
+    name: 'X-Inventory-Token',
+    required: false,
+    description: 'Short-lived token returned by POST /auth/inventory-access',
+  })
   @UseGuards(InventoryPinGuard)
   @Post()
-  create(@CurrentUser() user: any, @Body() createCategoryDto: CreateCategoryDto) {
+  create(
+    @CurrentUser() user: any,
+    @Body() createCategoryDto: CreateCategoryDto,
+  ) {
     return this.categoriesService.create(user.storeId, createCategoryDto);
   }
 

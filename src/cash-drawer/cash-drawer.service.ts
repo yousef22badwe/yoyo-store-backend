@@ -1,25 +1,39 @@
-import { Injectable, BadRequestException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateCashDrawerTransactionDto } from './dto/create-transaction.dto';
 import { TransactionType } from '@prisma/client';
+import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class CashDrawerService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(storeId: string, employeeId: string, role: string, dto: CreateCashDrawerTransactionDto) {
+  async create(
+    storeId: string,
+    employeeId: string,
+    role: string,
+    dto: CreateCashDrawerTransactionDto,
+  ) {
     if (dto.type === TransactionType.SALE) {
-      throw new BadRequestException('SALE transactions are automatically created via Invoices and cannot be created manually here.');
+      throw new BadRequestException(
+        'SALE transactions are automatically created via Invoices and cannot be created manually here.',
+      );
     }
 
     if (dto.type === TransactionType.WITHDRAWAL && role !== 'ADMIN') {
-      throw new ForbiddenException('Only admins can log a withdrawal transaction.');
+      throw new ForbiddenException(
+        'Only admins can log a withdrawal transaction.',
+      );
     }
 
     let actualEmployeeId = employeeId;
     if (role === 'ADMIN' && !employeeId) {
       let adminEmp = await this.prisma.employee.findFirst({
-        where: { storeId, role: 'ADMIN' }
+        where: { storeId, name: 'Store Owner', phone: '0000000000' },
       });
       if (!adminEmp) {
         adminEmp = await this.prisma.employee.create({
@@ -27,15 +41,15 @@ export class CashDrawerService {
             storeId,
             name: 'Store Owner',
             phone: '0000000000',
-            pin: '0000',
+            pin: await bcrypt.hash(`disabled-owner-${storeId}`, 10),
             role: 'ADMIN',
-            isActive: true,
-          }
+            isActive: false,
+          },
         });
       }
       actualEmployeeId = adminEmp.id;
     } else if (!actualEmployeeId) {
-        throw new ForbiddenException('Employee ID is required');
+      throw new ForbiddenException('Employee ID is required');
     }
 
     return this.prisma.cashDrawerTransaction.create({
@@ -50,7 +64,12 @@ export class CashDrawerService {
     });
   }
 
-  async findAll(storeId: string, from?: string, to?: string, type?: TransactionType) {
+  async findAll(
+    storeId: string,
+    from?: string,
+    to?: string,
+    type?: TransactionType,
+  ) {
     const where: any = { storeId };
 
     if (type) where.type = type;
@@ -95,9 +114,11 @@ export class CashDrawerService {
     for (const t of transactions) {
       const amount = Number(t.amount);
       if (t.type === TransactionType.SALE) totalSales += amount;
-      else if (t.type === TransactionType.MAINTENANCE) totalMaintenance += amount;
+      else if (t.type === TransactionType.MAINTENANCE)
+        totalMaintenance += amount;
       else if (t.type === TransactionType.EXPENSE) totalExpenses += amount;
-      else if (t.type === TransactionType.WITHDRAWAL) totalWithdrawals += amount;
+      else if (t.type === TransactionType.WITHDRAWAL)
+        totalWithdrawals += amount;
 
       if (t.paymentMethod === 'CASH') {
         if (t.type === TransactionType.SALE) netCashInDrawer += amount;

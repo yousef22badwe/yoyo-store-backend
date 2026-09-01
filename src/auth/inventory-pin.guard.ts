@@ -1,20 +1,26 @@
-import { Injectable, CanActivate, ExecutionContext, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  CanActivate,
+  ExecutionContext,
+  ForbiddenException,
+} from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
-import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class InventoryPinGuard implements CanActivate {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly jwtService: JwtService,
+  ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest();
     const user = request.user;
-    
+
     if (!user || !user.storeId) {
       throw new ForbiddenException('Invalid authentication context');
     }
-
-    const providedPin = request.headers['x-inventory-pin'];
 
     const store = await this.prisma.store.findUnique({
       where: { id: user.storeId },
@@ -25,13 +31,25 @@ export class InventoryPinGuard implements CanActivate {
       return true; // No PIN set, allow access
     }
 
-    if (!providedPin) {
-      throw new ForbiddenException('Inventory PIN is required for this action');
+    const accessToken = request.headers['x-inventory-token'];
+    if (typeof accessToken !== 'string' || accessToken.length === 0) {
+      throw new ForbiddenException(
+        'Inventory access is required for this action',
+      );
     }
 
-    const isMatch = providedPin === store.inventoryPin;
-    if (!isMatch) {
-      throw new ForbiddenException('Invalid Inventory PIN');
+    try {
+      const payload = this.jwtService.verify(accessToken);
+      if (
+        payload.purpose !== 'INVENTORY_ACCESS' ||
+        payload.storeId !== user.storeId
+      ) {
+        throw new Error('Invalid inventory access token');
+      }
+    } catch {
+      throw new ForbiddenException(
+        'Inventory access has expired or is invalid',
+      );
     }
 
     return true;

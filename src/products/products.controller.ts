@@ -1,5 +1,21 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Query } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiHeader } from '@nestjs/swagger';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  UseGuards,
+  Query,
+} from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiBearerAuth,
+  ApiQuery,
+  ApiHeader,
+} from '@nestjs/swagger';
 import { ProductsService } from './products.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
@@ -17,7 +33,11 @@ export class ProductsController {
   constructor(private readonly productsService: ProductsService) {}
 
   @ApiOperation({ summary: 'Create a new product' })
-  @ApiHeader({ name: 'X-Inventory-Pin', required: false, description: 'Required if store has an inventory PIN set' })
+  @ApiHeader({
+    name: 'X-Inventory-Token',
+    required: false,
+    description: 'Short-lived token returned by POST /auth/inventory-access',
+  })
   @UseGuards(InventoryPinGuard)
   @Post()
   create(@CurrentUser() user: any, @Body() createProductDto: CreateProductDto) {
@@ -32,7 +52,11 @@ export class ProductsController {
 
   @ApiOperation({ summary: 'Get all products' })
   @ApiQuery({ name: 'categoryId', required: false })
-  @ApiQuery({ name: 'search', required: false, description: 'Search by name or barcode' })
+  @ApiQuery({
+    name: 'search',
+    required: false,
+    description: 'Search by name or barcode',
+  })
   @Get()
   findAll(
     @CurrentUser() user: any,
@@ -49,15 +73,27 @@ export class ProductsController {
   }
 
   @ApiOperation({ summary: 'Update a product' })
-  @ApiHeader({ name: 'X-Inventory-Pin', required: false, description: 'Required if store has an inventory PIN set' })
+  @ApiHeader({
+    name: 'X-Inventory-Token',
+    required: false,
+    description: 'Short-lived token returned by POST /auth/inventory-access',
+  })
   @UseGuards(InventoryPinGuard)
   @Patch(':id')
-  update(@CurrentUser() user: any, @Param('id') id: string, @Body() updateProductDto: UpdateProductDto) {
+  update(
+    @CurrentUser() user: any,
+    @Param('id') id: string,
+    @Body() updateProductDto: UpdateProductDto,
+  ) {
     return this.productsService.update(user.storeId, id, updateProductDto);
   }
 
   @ApiOperation({ summary: 'Delete a product (Admin only)' })
-  @ApiHeader({ name: 'X-Inventory-Pin', required: false, description: 'Required if store has an inventory PIN set' })
+  @ApiHeader({
+    name: 'X-Inventory-Token',
+    required: false,
+    description: 'Short-lived token returned by POST /auth/inventory-access',
+  })
   @Roles('ADMIN')
   @UseGuards(InventoryPinGuard)
   @Delete(':id')
